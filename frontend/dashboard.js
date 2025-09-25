@@ -17,7 +17,7 @@ const ESPHomeConfigGenerator = () => {
       wifi_password: ''
     },
     mqtt: {
-      broker: '10.217.55.20',
+      broker: '0.0.0.0',
       username: 'username',
       password: 'password',
       port: 1883
