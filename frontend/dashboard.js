@@ -27,7 +27,8 @@ const ESPHomeConfigGenerator = () => {
       broker: '0.0.0.0',
       username: 'username',
       password: 'password',
-      port: 1883
+      port: 1883,
+      birth_message_topic: ''
     }
   });
 
@@ -460,6 +461,25 @@ const ESPHomeConfigGenerator = () => {
                             />
                           </div>
                         </div>
+                        
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Birth Message Topic
+                          </label>
+                          <input
+                            type="text"
+                            value={config.mqtt.birth_message_topic}
+                            onChange={(e) => setConfig({
+                              ...config,
+                              mqtt: { ...config.mqtt, birth_message_topic: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder={`${config.device_name}/topics (default)`}
+                          />
+                          <p className="mt-1 text-xs text-gray-500">
+                            MQTT topic for birth message. Leave empty to use default: {config.device_name}/topics
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -545,6 +565,10 @@ const ESPHomeConfigGenerator = () => {
                     <span>MQTT Broker:</span>
                     <span className="font-medium">{config.mqtt.broker}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Birth Topic:</span>
+                    <span className="font-medium">{config.mqtt.birth_message_topic || `${config.device_name}/topics`}</span>
+                  </div>
                 </div>
                 
                 <button
@@ -585,18 +609,18 @@ const ESPHomeConfigGenerator = () => {
                 
                 <div className="bg-gray-900 rounded-md p-4 max-h-64 overflow-auto">
                   <pre className="text-green-400 text-xs font-mono whitespace-pre-wrap">
-                    {generatedConfig.substring(0, 1000)}
-                    {generatedConfig.length > 1000 && '...'}
+                    {generatedConfig}
+                    {/* {generatedConfig.length > 1000 && '...'} */}
                   </pre>
                 </div>
                 
-                <div className="mt-2 text-xs text-gray-500">
+                {/* <div className="mt-2 text-xs text-gray-500">
                   {generatedConfig.length > 1000 ? (
                     <>Showing first 1000 characters. Download for complete file.</>
                   ) : (
                     <>Configuration ready for download.</>
                   )}
-                </div>
+                </div> */}
               </div>
             )}
           </div>
