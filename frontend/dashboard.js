@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Download, Settings, Wifi, Monitor, Database } from 'lucide-react';
+import { Download, Settings, Wifi, Monitor, Database, Zap, Cpu } from 'lucide-react';
 
 const ESPHomeConfigGenerator = () => {
   const [config, setConfig] = useState({
+    device_type: 'm30',
     device_name: 'm30',
     friendly_name: 'm30',
     api_key: '8G0kVEA0/DqgAavgKNyy9EYUrWo6pEZM38JVMAryJv8=',
@@ -10,6 +11,12 @@ const ESPHomeConfigGenerator = () => {
       id: i + 1,
       enabled: false,
       topic_base: ''
+    })),
+    a32_circuits: Array.from({ length: 32 }, (_, i) => ({
+      id: i + 1,
+      enabled: false,
+      state_topic: '',
+      command_topic: ''
     })),
     network: {
       type: 'ethernet',
@@ -26,42 +33,79 @@ const ESPHomeConfigGenerator = () => {
 
   const [generatedConfig, setGeneratedConfig] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('circuits');
+  const [activeTab, setActiveTab] = useState('device-type');
 
   const updateCircuit = (index, field, value) => {
-    const newCircuits = [...config.circuits];
-    newCircuits[index][field] = value;
-    setConfig({ ...config, circuits: newCircuits });
+    if (config.device_type === 'm30') {
+      const newCircuits = [...config.circuits];
+      newCircuits[index][field] = value;
+      setConfig({ ...config, circuits: newCircuits });
+    } else {
+      const newCircuits = [...config.a32_circuits];
+      newCircuits[index][field] = value;
+      setConfig({ ...config, a32_circuits: newCircuits });
+    }
   };
 
   const toggleAllCircuits = (enabled) => {
-    const newCircuits = config.circuits.map(circuit => ({
-      ...circuit,
-      enabled,
-      topic_base: enabled ? circuit.topic_base || `TOPICS-PREFIX/CIRCUIT-${circuit.id}/Device` : circuit.topic_base
-    }));
-    setConfig({ ...config, circuits: newCircuits });
+    if (config.device_type === 'm30') {
+      const newCircuits = config.circuits.map(circuit => ({
+        ...circuit,
+        enabled,
+        topic_base: enabled ? circuit.topic_base || `TOPICS-PREFIX/CIRCUIT-${circuit.id}/Device` : circuit.topic_base
+      }));
+      setConfig({ ...config, circuits: newCircuits });
+    } else {
+      const newCircuits = config.a32_circuits.map(circuit => ({
+        ...circuit,
+        enabled,
+        state_topic: enabled ? circuit.state_topic || `TOPICS-PREFIX/CIRCUIT-${circuit.id}/Device/state` : circuit.state_topic,
+        command_topic: enabled ? circuit.command_topic || `TOPICS-PREFIX/CIRCUIT-${circuit.id}/Device/command` : circuit.command_topic
+      }));
+      setConfig({ ...config, a32_circuits: newCircuits });
+    }
+  };
+
+  const getCurrentCircuits = () => {
+    return config.device_type === 'm30' ? config.circuits : config.a32_circuits;
+  };
+
+  const getMaxCircuits = () => {
+    return config.device_type === 'm30' ? 30 : 32;
   };
 
   const generateConfig = async () => {
     setLoading(true);
     try {
       const requestData = {
+        device_type: config.device_type,
         device_name: config.device_name,
         friendly_name: config.friendly_name,
         api_key: config.api_key,
-        circuits: config.circuits.reduce((acc, circuit) => {
+        network: config.network,
+        mqtt: config.mqtt
+      };
+
+      if (config.device_type === 'm30') {
+        requestData.circuits = config.circuits.reduce((acc, circuit) => {
           acc[circuit.id] = {
             enabled: circuit.enabled,
             topic_base: circuit.topic_base
           };
           return acc;
-        }, {}),
-        network: config.network,
-        mqtt: config.mqtt
-      };
+        }, {});
+      } else {
+        requestData.a32_circuits = config.a32_circuits.reduce((acc, circuit) => {
+          acc[circuit.id] = {
+            enabled: circuit.enabled,
+            state_topic: circuit.state_topic,
+            command_topic: circuit.command_topic
+          };
+          return acc;
+        }, {});
+      }
 
-      const response = await fetch('http://localhost:8000/generate-config', {
+      const response = await fetch('/api/generate-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,32 +136,31 @@ const ESPHomeConfigGenerator = () => {
     URL.revokeObjectURL(url);
   };
 
-  const enabledCount = config.circuits.filter(c => c.enabled).length;
+  const enabledCount = getCurrentCircuits().filter(c => c.enabled).length;
+  const maxCircuits = getMaxCircuits();
 
   return (
     <div className="fixed inset-0 bg-gray-50 overflow-auto">
       <div className="w-full px-4 py-6">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            ESPHome M30 Config Generator
+            ESPHome Config Generator
           </h1>
           <p className="text-gray-600">
-            Configure your Kincony M30 energy meter with custom MQTT topics and network settings
+            Configure your Kincony devices with custom MQTT topics and network settings
           </p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[calc(100vh-200px)]">
-          {/* Configuration Panel */}
           <div className="xl:col-span-2">
             <div className="bg-white rounded-lg shadow-sm">
-              {/* Tabs */}
               <div className="border-b border-gray-200">
                 <nav className="flex space-x-8 px-6">
                   {[
-                    { id: 'circuits', name: 'Circuits', icon: Database },
+                    { id: 'device-type', name: 'Device', icon: Cpu },
+                    { id: 'circuits', name: config.device_type === 'm30' ? 'Circuits' : 'Switches', icon: config.device_type === 'm30' ? Database : Zap },
                     { id: 'network', name: 'Network', icon: config.network.type === 'wifi' ? Wifi : Monitor },
-                    { id: 'device', name: 'Device', icon: Settings }
+                    { id: 'device-settings', name: 'Settings', icon: Settings }
                   ].map(({ id, name, icon: Icon }) => (
                     <button
                       key={id}
@@ -136,16 +179,67 @@ const ESPHomeConfigGenerator = () => {
               </div>
 
               <div className="p-6">
-                {/* Circuits Tab */}
+                {activeTab === 'device-type' && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                      Select Device Type
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div 
+                        className={`p-6 border-2 rounded-lg cursor-pointer transition-colors ${
+                          config.device_type === 'm30' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setConfig({ ...config, device_type: 'm30', device_name: 'm30', friendly_name: 'M30 Energy Monitor' })}
+                      >
+                        <div className="flex items-center mb-3">
+                          <Database className="w-8 h-8 text-blue-600 mr-3" />
+                          <h3 className="text-lg font-medium text-gray-900">Kincony M30</h3>
+                        </div>
+                        <p className="text-gray-600 mb-3">Energy monitoring device with 30 circuits</p>
+                        <ul className="text-sm text-gray-500 space-y-1">
+                          <li>• Current, Power, Energy sensors</li>
+                          <li>• RGB LED status indicators</li>
+                          <li>• Modbus RTU communication</li>
+                          <li>• ESP32 + Ethernet</li>
+                        </ul>
+                      </div>
+
+                      <div 
+                        className={`p-6 border-2 rounded-lg cursor-pointer transition-colors ${
+                          config.device_type === 'a32_pro' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setConfig({ ...config, device_type: 'a32_pro', device_name: 'a32-pro', friendly_name: 'A32 Pro Controller' })}
+                      >
+                        <div className="flex items-center mb-3">
+                          <Zap className="w-8 h-8 text-green-600 mr-3" />
+                          <h3 className="text-lg font-medium text-gray-900">Kincony A32 Pro</h3>
+                        </div>
+                        <p className="text-gray-600 mb-3">Relay control board with 32 switches</p>
+                        <ul className="text-sm text-gray-500 space-y-1">
+                          <li>• 32 relay outputs</li>
+                          <li>• 40 digital inputs</li>
+                          <li>• I2C expanders (XL9535, PCF8574)</li>
+                          <li>• ESP32-S3 + W5500 Ethernet</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'circuits' && (
                   <div>
                     <div className="flex justify-between items-center mb-6">
                       <div>
                         <h2 className="text-xl font-semibold text-gray-900">
-                          Circuit Configuration
+                          {config.device_type === 'm30' ? 'Circuit Configuration' : 'Switch Configuration'}
                         </h2>
                         <p className="text-sm text-gray-600 mt-1">
-                          {enabledCount} of 30 circuits enabled
+                          {enabledCount} of {maxCircuits} {config.device_type === 'm30' ? 'circuits' : 'switches'} enabled
                         </p>
                       </div>
                       <div className="space-x-2">
@@ -165,14 +259,14 @@ const ESPHomeConfigGenerator = () => {
                     </div>
 
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {config.circuits.map((circuit, index) => (
+                      {getCurrentCircuits().map((circuit, index) => (
                         <div
                           key={circuit.id}
                           className={`p-4 border rounded-lg transition-colors ${
                             circuit.enabled ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
                           }`}
                         >
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-start space-x-4">
                             <div className="flex items-center">
                               <input
                                 type="checkbox"
@@ -181,27 +275,56 @@ const ESPHomeConfigGenerator = () => {
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
                               <span className="ml-2 text-sm font-medium text-gray-900">
-                                Circuit {circuit.id}
+                                {config.device_type === 'm30' ? `Circuit ${circuit.id}` : `Switch ${circuit.id}`}
                               </span>
-                              {circuit.id === 10 || circuit.id === 20 || circuit.id === 30 ? (
+                              {config.device_type === 'm30' && (circuit.id === 10 || circuit.id === 20 || circuit.id === 30) ? (
                                 <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
                                   +Voltage
                                 </span>
                               ) : null}
                             </div>
-                            <div className="flex-1">
-                              <input
-                                type="text"
-                                placeholder="e.g., TOPICS-PREFIX/BUREAU-DIRECTEUR/Climatiseur"
-                                value={circuit.topic_base}
-                                onChange={(e) => updateCircuit(index, 'topic_base', e.target.value)}
-                                disabled={!circuit.enabled}
-                                className={`w-full px-3 py-2 text-sm border rounded-md ${
-                                  circuit.enabled
-                                    ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                                    : 'border-gray-200 bg-gray-100 text-gray-400'
-                                }`}
-                              />
+                            <div className="flex-1 space-y-2">
+                              {config.device_type === 'm30' ? (
+                                <input
+                                  type="text"
+                                  placeholder="e.g., TOPICS-PREFIX/BUREAU-DIRECTEUR/Climatiseur"
+                                  value={circuit.topic_base}
+                                  onChange={(e) => updateCircuit(index, 'topic_base', e.target.value)}
+                                  disabled={!circuit.enabled}
+                                  className={`w-full px-3 py-2 text-sm border rounded-md ${
+                                    circuit.enabled
+                                      ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                      : 'border-gray-200 bg-gray-100 text-gray-400'
+                                  }`}
+                                />
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="State topic (e.g., .../state)"
+                                    value={circuit.state_topic}
+                                    onChange={(e) => updateCircuit(index, 'state_topic', e.target.value)}
+                                    disabled={!circuit.enabled}
+                                    className={`w-full px-3 py-2 text-sm border rounded-md ${
+                                      circuit.enabled
+                                        ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                        : 'border-gray-200 bg-gray-100 text-gray-400'
+                                    }`}
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Command topic (e.g., .../command)"
+                                    value={circuit.command_topic}
+                                    onChange={(e) => updateCircuit(index, 'command_topic', e.target.value)}
+                                    disabled={!circuit.enabled}
+                                    className={`w-full px-3 py-2 text-sm border rounded-md ${
+                                      circuit.enabled
+                                        ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                                        : 'border-gray-200 bg-gray-100 text-gray-400'
+                                    }`}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -210,7 +333,6 @@ const ESPHomeConfigGenerator = () => {
                   </div>
                 )}
 
-                {/* Network Tab */}
                 {activeTab === 'network' && (
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">
@@ -343,8 +465,7 @@ const ESPHomeConfigGenerator = () => {
                   </div>
                 )}
 
-                {/* Device Tab */}
-                {activeTab === 'device' && (
+                {activeTab === 'device-settings' && (
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">
                       Device Settings
@@ -361,7 +482,7 @@ const ESPHomeConfigGenerator = () => {
                             value={config.device_name}
                             onChange={(e) => setConfig({ ...config, device_name: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="e.g., m30"
+                            placeholder={config.device_type === 'm30' ? 'e.g., m30' : 'e.g., a32-pro'}
                           />
                         </div>
                         <div>
@@ -373,7 +494,7 @@ const ESPHomeConfigGenerator = () => {
                             value={config.friendly_name}
                             onChange={(e) => setConfig({ ...config, friendly_name: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="e.g., M30 Energy Monitor"
+                            placeholder={config.device_type === 'm30' ? 'e.g., M30 Energy Monitor' : 'e.g., A32 Pro Controller'}
                           />
                         </div>
                       </div>
@@ -400,9 +521,7 @@ const ESPHomeConfigGenerator = () => {
             </div>
           </div>
 
-          {/* Action Panel */}
           <div className="space-y-6">
-            {/* Generation Actions */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Generate Configuration
@@ -411,8 +530,12 @@ const ESPHomeConfigGenerator = () => {
               <div className="space-y-4">
                 <div className="text-sm text-gray-600">
                   <div className="flex justify-between">
-                    <span>Enabled Circuits:</span>
-                    <span className="font-medium">{enabledCount}/30</span>
+                    <span>Device:</span>
+                    <span className="font-medium">{config.device_type === 'm30' ? 'Kincony M30' : 'Kincony A32 Pro'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Enabled {config.device_type === 'm30' ? 'Circuits' : 'Switches'}:</span>
+                    <span className="font-medium">{enabledCount}/{maxCircuits}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Network:</span>
@@ -454,7 +577,6 @@ const ESPHomeConfigGenerator = () => {
               </div>
             </div>
 
-            {/* Config Preview */}
             {generatedConfig && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -463,13 +585,13 @@ const ESPHomeConfigGenerator = () => {
                 
                 <div className="bg-gray-900 rounded-md p-4 max-h-64 overflow-auto">
                   <pre className="text-green-400 text-xs font-mono whitespace-pre-wrap">
-                    {generatedConfig.substring(0, 10000)}
-                    {generatedConfig.length > 10000 && '...'}
+                    {generatedConfig.substring(0, 1000)}
+                    {generatedConfig.length > 1000 && '...'}
                   </pre>
                 </div>
                 
                 <div className="mt-2 text-xs text-gray-500">
-                  {generatedConfig.length > 10000 ? (
+                  {generatedConfig.length > 1000 ? (
                     <>Showing first 1000 characters. Download for complete file.</>
                   ) : (
                     <>Configuration ready for download.</>
