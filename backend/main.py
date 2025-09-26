@@ -10,7 +10,6 @@ import json
 
 app = FastAPI(title="ESPHome Config Generator", version="1.0.0")
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,6 +41,7 @@ class MQTTConfig(BaseModel):
     username: str = "username"
     password: str = "password" 
     port: int = 1883
+    birth_message_topic: str = ""
 
 class ESPHomeConfig(BaseModel):
     device_type: DeviceType = DeviceType.M30
@@ -52,7 +52,6 @@ class ESPHomeConfig(BaseModel):
     network: NetworkConfig
     mqtt: MQTTConfig
     api_key: str = "8G0kVEA0/DqgAavgKNyy9EYUrWo6pEZM38JVMAryJv8="
-
 
 class M30ConfigGenerator:
     def __init__(self):
@@ -245,7 +244,6 @@ class M30ConfigGenerator:
 
 class A32ProConfigGenerator:
     def __init__(self):
-
         self.switch_mapping = {
             1: ('xl9535_hub_out1', 0), 2: ('xl9535_hub_out1', 1), 3: ('xl9535_hub_out1', 2), 4: ('xl9535_hub_out1', 3),
             5: ('xl9535_hub_out1', 4), 6: ('xl9535_hub_out1', 5), 7: ('xl9535_hub_out1', 6), 8: ('xl9535_hub_out1', 7),
@@ -493,7 +491,6 @@ async def generate_config(config: ESPHomeConfig):
                     'phy_addr': 0
                 }
             else:
-                
                 esphome_config['ethernet'] = {
                     'type': 'W5500',
                     'clk_pin': 'GPIO42',
@@ -504,25 +501,25 @@ async def generate_config(config: ESPHomeConfig):
                     'reset_pin': 'GPIO43'
                 }
         else:
-
             esphome_config['wifi'] = {
                 'ssid': config.network.wifi_ssid,
                 'password': config.network.wifi_password
             }
             
-
+        # Add MQTT config with configurable birth message topic
         esphome_config['mqtt'] = {
             'broker': config.mqtt.broker,
             'username': config.mqtt.username,
             'password': config.mqtt.password,
             'port': config.mqtt.port,
             'birth_message': {
-                'topic': f'{config.device_name}/topics',
+                'topic': config.mqtt.birth_message_topic or f'{config.device_name}/topics',
                 'payload': birth_message
             }
         }
         
-        yaml_config = yaml.dump(esphome_config, default_flow_style=False, sort_keys=False)
+        yaml_config = yaml.dump(esphome_config, default_flow_style=False, sort_keys=False, 
+                                indent=2, allow_unicode=True)
         
         return {"yaml_config": yaml_config, "birth_message": birth_message}
         
@@ -532,8 +529,6 @@ async def generate_config(config: ESPHomeConfig):
 @app.get("/api/")
 async def api_root():
     return {"message": "ESPHome Config Generator API"}
-
-generator = None
 
 if __name__ == "__main__":
     import uvicorn
