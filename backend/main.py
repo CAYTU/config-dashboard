@@ -53,6 +53,18 @@ class ESPHomeConfig(BaseModel):
     mqtt: MQTTConfig
     api_key: str = "8G0kVEA0/DqgAavgKNyy9EYUrWo6pEZM38JVMAryJv8="
 
+
+
+class HexInt(int):
+    """Custom int class that serializes as hex in YAML"""
+    pass
+
+def hex_representer(dumper, data):
+    """Custom YAML representer for hex values"""
+    return dumper.represent_scalar('tag:yaml.org,2002:int', hex(data))
+
+yaml.add_representer(HexInt, hex_representer)
+
 class M30ConfigGenerator:
     def __init__(self):
         self.circuit_to_address = {
@@ -241,28 +253,27 @@ class M30ConfigGenerator:
                 'update_interval': '5s'
             }]
         }
-
 class A32ProConfigGenerator:
     def __init__(self):
         self.switch_mapping = {
             1: ('xl9535_hub_out1', 0), 2: ('xl9535_hub_out1', 1), 3: ('xl9535_hub_out1', 2), 4: ('xl9535_hub_out1', 3),
             5: ('xl9535_hub_out1', 4), 6: ('xl9535_hub_out1', 5), 7: ('xl9535_hub_out1', 6), 8: ('xl9535_hub_out1', 7),
-            9: ('xl9535_hub_out1', 10), 10: ('xl9535_hub_out1', 11), 11: ('xl9535_hub_out1', 12), 12: ('xl9535_hub_out1', 13),
+            9: ('xl9535_hub_out1', 8), 10: ('xl9535_hub_out1', 9), 11: ('xl9535_hub_out1', 12), 12: ('xl9535_hub_out1', 13),
             13: ('xl9535_hub_out1', 14), 14: ('xl9535_hub_out1', 15), 15: ('xl9535_hub_out1', 16), 16: ('xl9535_hub_out1', 17),
             17: ('xl9535_hub_out2', 0), 18: ('xl9535_hub_out2', 1), 19: ('xl9535_hub_out2', 2), 20: ('xl9535_hub_out2', 3),
             21: ('xl9535_hub_out2', 4), 22: ('xl9535_hub_out2', 5), 23: ('xl9535_hub_out2', 6), 24: ('xl9535_hub_out2', 7),
-            25: ('xl9535_hub_out2', 10), 26: ('xl9535_hub_out2', 11), 27: ('xl9535_hub_out2', 12), 28: ('xl9535_hub_out2', 13),
+            25: ('xl9535_hub_out2', 8), 26: ('xl9535_hub_out2', 9), 27: ('xl9535_hub_out2', 12), 28: ('xl9535_hub_out2', 13),
             29: ('xl9535_hub_out2', 14), 30: ('xl9535_hub_out2', 15), 31: ('xl9535_hub_out2', 16), 32: ('xl9535_hub_out2', 17)
         }
         
         self.input_mapping = {
             1: ('xl9535_hub_in1', 0), 2: ('xl9535_hub_in1', 1), 3: ('xl9535_hub_in1', 2), 4: ('xl9535_hub_in1', 3),
             5: ('xl9535_hub_in1', 4), 6: ('xl9535_hub_in1', 5), 7: ('xl9535_hub_in1', 6), 8: ('xl9535_hub_in1', 7),
-            9: ('xl9535_hub_in1', 10), 10: ('xl9535_hub_in1', 11), 11: ('xl9535_hub_in1', 12), 12: ('xl9535_hub_in1', 13),
+            9: ('xl9535_hub_in1', 8), 10: ('xl9535_hub_in1', 9), 11: ('xl9535_hub_in1', 12), 12: ('xl9535_hub_in1', 13),
             13: ('xl9535_hub_in1', 14), 14: ('xl9535_hub_in1', 15), 15: ('xl9535_hub_in1', 16), 16: ('xl9535_hub_in1', 17),
             17: ('xl9535_hub_in2', 0), 18: ('xl9535_hub_in2', 1), 19: ('xl9535_hub_in2', 2), 20: ('xl9535_hub_in2', 3),
             21: ('xl9535_hub_in2', 4), 22: ('xl9535_hub_in2', 5), 23: ('xl9535_hub_in2', 6), 24: ('xl9535_hub_in2', 7),
-            25: ('xl9535_hub_in2', 10), 26: ('xl9535_hub_in2', 11), 27: ('xl9535_hub_in2', 12), 28: ('xl9535_hub_in2', 13),
+            25: ('xl9535_hub_in2', 8), 26: ('xl9535_hub_in2', 9), 27: ('xl9535_hub_in2', 12), 28: ('xl9535_hub_in2', 13),
             29: ('xl9535_hub_in2', 14), 30: ('xl9535_hub_in2', 15), 31: ('xl9535_hub_in2', 16), 32: ('xl9535_hub_in2', 17),
             33: ('pcf8574_in_3', 0), 34: ('pcf8574_in_3', 1), 35: ('pcf8574_in_3', 2), 36: ('pcf8574_in_3', 3),
             37: ('pcf8574_in_3', 4), 38: ('pcf8574_in_3', 5), 39: ('pcf8574_in_3', 6), 40: ('pcf8574_in_3', 7)
@@ -380,13 +391,13 @@ class A32ProConfigGenerator:
                 'frequency': '400kHz'
             }],
             'xl9535': [
-                {'id': 'xl9535_hub_out1', 'address': 0x21},
-                {'id': 'xl9535_hub_out2', 'address': 0x22},
-                {'id': 'xl9535_hub_in1', 'address': 0x24},
-                {'id': 'xl9535_hub_in2', 'address': 0x25}
+                {'id': 'xl9535_hub_out1', 'address': HexInt(0x21)},  
+                {'id': 'xl9535_hub_out2', 'address': HexInt(0x22)},
+                {'id': 'xl9535_hub_in1', 'address': HexInt(0x24)},
+                {'id': 'xl9535_hub_in2', 'address': HexInt(0x25)}
             ],
             'pcf8574': [
-                {'id': 'pcf8574_in_3', 'address': 0x23}
+                {'id': 'pcf8574_in_3', 'address': HexInt(0x23)}
             ],
             'gp8403': {
                 'id': 'my_gp8403',
@@ -417,8 +428,25 @@ class A32ProConfigGenerator:
                     'platform': 'adc', 'pin': 4, 'name': 'A32 Pro A4 Current', 'update_interval': '5s',
                     'unit_of_measurement': 'mA', 'attenuation': '11db', 'filters': [{'multiply': 6.66666666}]
                 }
-            ]
+            ],
+            'web_server': {
+                'port': 80
+            },
+            'font': [{
+                'file': 'gfonts://Roboto',
+                'id': 'roboto',
+                'size': 20
+            }],
+            'display': [{
+                'platform': 'ssd1306_i2c',
+                'i2c_id': 'bus_a',
+                'model': 'SSD1306 128x64',
+                'address': HexInt(0x3C),  
+                'lambda': 'it.printf(0, 0, id(roboto), "A32 Pro");'
+            }]
         }
+
+
 
 @app.post("/api/generate-config")
 async def generate_config(config: ESPHomeConfig):
@@ -506,7 +534,7 @@ async def generate_config(config: ESPHomeConfig):
                 'password': config.network.wifi_password
             }
             
-        # Add MQTT config with configurable birth message topic
+
         esphome_config['mqtt'] = {
             'broker': config.mqtt.broker,
             'username': config.mqtt.username,
